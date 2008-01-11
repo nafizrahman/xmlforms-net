@@ -1,0 +1,439 @@
+using System;
+using System.Collections.Generic;
+using System.Text;
+using System.IO;
+using System.Xml;
+using NLog;
+using System.Collections;
+using System.Collections.Specialized;
+
+namespace XmlProc
+{
+    
+
+    public class ElementInfo
+    {
+        public ElementInfo() { }
+        public ElementInfo(string prefix, string name, string nsUri, bool empty, int depth) { Name = name; Prefix = prefix; NamespaceUri = nsUri; IsEmpty = empty; Depth = depth; }
+        public string Name;
+        public string Prefix;
+        public string NamespaceUri;
+        public bool IsEmpty;
+        public int Depth;
+        public Dictionary<string, AttributeInfo> Attributes = new Dictionary<string, AttributeInfo>();
+        /// <summary>
+        /// Tu mo¿emy w³o¿yæ dowolny obiekt - pole nieu¿ywane przez engine
+        /// </summary>
+        public object ContextValue;
+        public AttributeInfo GetAttribute(string name)
+        {
+            if (!Attributes.ContainsKey(name)) return null;
+            return Attributes[name];
+        }
+        public string GetAttributeValue(string name)
+        {
+            AttributeInfo ai = GetAttribute(name);
+            return ai == null ? null : ai.Value;
+        }
+
+        /// <summary>
+        /// handler który obs³uguje ten element. Uwaga: poprawna wartoœæ w tym polu jest wy³¹cznie
+        /// podczas przetwarzania elementu oraz jego elementów zagnie¿dzonych. 
+        /// </summary>
+        public IElementHandler Handler;
+    }
+
+    public class AttributeInfo
+    {
+        public string Name;
+        public string Value;
+        public string Prefix;
+        public string NamespaceUri;
+    }
+
+    public interface IFormContext
+    {
+        ElementInfo CurrentElement { get; }
+        int StackSize { get; }
+        ElementInfo PeekElementStack(int n);
+        XmlReader Input { get;}
+        XmlWriter Output { get; }
+        void ProcessElementContent();
+        void SkipElementContent();
+        /// <summary>
+        /// Do przechowywania dowolnych wartoœci w kontekœcie
+        /// </summary>
+        object this[string key] { get; set; }
+        object Eval(string expr);
+        /// <summary>
+        /// nasz g³ówny 'kontekstowy' obiekt
+        /// </summary>
+        object T {get; set;}
+        /// <summary>
+        /// persystentny view state
+        /// </summary>
+        IDictionary ViewState { get; set;}
+    }
+
+    public interface IElementHandler
+    {
+        /// <summary>
+        /// Warunki wejœciowe: reader (Input) stoi tu¿ za deklaracj¹ elementu przetwarzanego
+        /// Jeœli nie chcemy przetwarzaæ wnêtrza elementu, nie czytamy NIC z Inputu (wtedy wnêtrze elementu bêdzie przetworzone automatycznie)
+        /// Jeœli przetwarzamy wnêtrze elementu powinniœmy przeczytaæ tyle, aby 
+        /// stan¹æ NA tagu zamykaj¹cym element przetwarzany (NodeType w inpucie powinno byæ 'EndElement')
+        /// </summary>
+        void ElementStart(IFormContext context);
+        /// <summary>
+        /// Wywo³ywane po napotkaniu tagu zamykaj¹cego element przetwarzany
+        /// Uwaga: jeœli sami przetworzyliœmy jego zawartoœæ to ta funkcja nie bêdzie wywo³ana
+        /// W przypadku pustych elementów funkcja bêdzie i tak wywo³ana.
+        /// </summary>
+        void ElementEnd(IFormContext context);
+        
+    }
+
+    class XmlFormProcessor : IFormContext
+    {
+        private static Logger log = LogManager.GetCurrentClassLogger();
+        private string _matchNs = "http://www.rg.com/preprocess";
+        private IList<ElementInfo> _elementStack = new List<ElementInfo>();
+        private XmlReader _Input;
+        private XmlWriter _Output;
+        private Hashtable _customAttributes = new Hashtable();
+        private IElementHandlerFactory _fact = null;
+        private IDictionary _params;
+        //private InteractiveInterpreter _evaluator = new InteractiveInterpreter();
+        private Atmo.Core.AtmoExpressionEvaluator _evaluator = new Atmo.Core.AtmoExpressionEvaluator();
+        private object _t;
+        private IDictionary _viewState = new Hashtable();
+
+        public XmlFormProcessor(
+            XmlReader input, XmlWriter output, NameValueCollection parameters, IElementHandlerFactory handlerFact
+            )
+        {
+            _Input = input;
+            _Output = output;
+            _fact = handlerFact;
+            _params = new Hashtable();
+            foreach (string name in parameters.Keys) { _params[name] = parameters[name]; }
+            _evaluator.AddRootVariable("_PAR", _params);
+            _evaluator.AddRootVariable("T", _t);
+        }
+
+        public void Process()
+        {
+            DateTime start = DateTime.Now;
+            Output.WriteStartDocument();
+                        
+            while (Input.Read())
+            {
+                //log.Debug("IN NODE: Type:{0}|Name:{1}|NS:{2}|Value:{3}", Input.NodeType, Input.Name, Input.NamespaceURI, Input.Value);
+                switch (Input.NodeType)
+                {
+                    case XmlNodeType.ProcessingInstruction:
+                        Output.WriteProcessingInstruction(Input.Name, Input.Value);
+                        break;
+                    case XmlNodeType.XmlDeclaration:
+                        break;
+                    case XmlNodeType.Element:
+                        ProcessElement();
+                        break;
+                    case XmlNodeType.Whitespace:
+                        Output.WriteWhitespace(Input.Value);
+                        break;
+                    case XmlNodeType.Comment:
+                        //Output.WriteComment(Input.Value);
+                        break;
+                    default:
+                        throw new Exception("Unexpected node: " + Input.NodeType);
+                }
+            }
+            TimeSpan procTime = DateTime.Now - start;
+            log.Info("Form processing time: {0}", procTime);
+        }
+
+        
+        private void CopyAttributes()
+        {
+            //ElementInfo curElement = _elementStack.Peek();
+            while(Input.MoveToNextAttribute())
+            {
+                Output.WriteAttributeString(Input.Prefix, Input.LocalName, Input.NamespaceURI, Input.Value);
+                /*Attribute attr = new Attribute();
+                attr.Name = Input.LocalName;
+                attr.Value = Input.Value;
+                attr.Prefix = Input.Prefix;
+                attr.NamespaceUri = Input.NamespaceURI;
+                curElement.Attributes.Add(attr);
+                 */
+            }
+        }
+
+        private void ReadAttributes()
+        {
+            ElementInfo curElement = _elementStack[_elementStack.Count - 1];
+            while (Input.MoveToNextAttribute())
+            {
+                AttributeInfo attr = new AttributeInfo();
+                attr.Name = Input.LocalName;
+                attr.Value = Input.Value;
+                attr.Prefix = Input.Prefix;
+                attr.NamespaceUri = Input.NamespaceURI;
+                curElement.Attributes.Add(attr.Name, attr);
+            }
+        }
+        /// <summary>
+        /// Rekursywnie przetwarza wnêtrze elementu do koñca tego elementu (tagu zamykaj¹cego)
+        /// UWAGA: mo¿e byæ uzywane wy³¹cznie do elementów niepustych, wywo³uj¹c musimy staæ ZA tagiem
+        /// otwieraj¹cym element.
+        /// We: stoimy tuz po deklaracji elementu
+        /// Wy: napotkalismy EndElement od biezacego elementu, wychodzimy...
+        /// </summary>
+        public void ProcessElementContent()
+        {
+            while (Input.Read())
+            {
+                switch (Input.NodeType)
+                {
+                    case XmlNodeType.Element:
+                        ProcessElement();
+                        break;
+                    case XmlNodeType.Whitespace:
+                        Output.WriteWhitespace(Input.Value);
+                        break;
+                    case XmlNodeType.Comment:
+                        Output.WriteComment(Input.Value);
+                        break;
+                    case XmlNodeType.Text:
+                        Output.WriteString(Input.Value);
+                        break;
+                    case XmlNodeType.EndElement:
+                        return;
+                    case XmlNodeType.Attribute:
+                        throw new Exception();
+                        break;
+                    case XmlNodeType.SignificantWhitespace:
+                        Output.WriteWhitespace(Input.Value);
+                        break;
+                    case XmlNodeType.CDATA:
+                        Output.WriteCData(Input.Value);
+                        break;
+                    default:
+                        throw new Exception("Unhandled node type: " + Input.NodeType);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Rekursywnie przetwarza wnêtrze elementu do koñca tego elementu (tagu zamykaj¹cego)
+        /// UWAGA: mo¿e byæ uzywane wy³¹cznie do elementów niepustych, wywo³uj¹c musimy staæ ZA tagiem
+        /// otwieraj¹cym element.
+        /// We: stoimy tuz po deklaracji elementu
+        /// Wy: napotkalismy EndElement od biezacego elementu, wychodzimy...
+        /// </summary>
+        public void SkipElementContent()
+        {
+            int level = 1;
+            while (Input.Read())
+            {
+                if (Input.NodeType == XmlNodeType.Element)
+                {
+                    if (!Input.IsEmptyElement) level++;
+                }
+                else if (Input.NodeType == XmlNodeType.EndElement)
+                {
+                    level--;
+                    if (level == 0)
+                    {
+                        return;
+                    }
+                }
+            }
+        }
+        /// <summary>
+        /// Przetwarza jeden element w dokumencie - od poczatku do konca
+        /// We: stoimy na elemencie (NodeType == Element)
+        /// Wy: stoimy na tagu zamykaj¹cym element (NodeType == EndElement) albo na ostatnim atrybucie
+        /// elementu jeœli jest on pusty. W ka¿dym razie, nastêpne wywo³anie 'Read()' da nam kolejny node
+        /// w dokumencie nastêpuj¹cy tu¿ po przetworzonym elemencie.
+        /// </summary>
+        public void ProcessElement()
+        {
+            if (Input.NodeType != XmlNodeType.Element) throw new Exception("Element expected");
+            
+            bool emptyElement = Input.IsEmptyElement;
+            int depth = Input.Depth;
+            
+            if (_fact.HandlesNamespace(Input.NamespaceURI))
+            {
+                PreprocessElement();
+                return;
+            }
+
+            //ElementInfo ei = new ElementInfo(Input.Prefix, Input.LocalName, Input.NamespaceURI, Input.IsEmptyElement);
+            //_elementStack.Push(ei);
+            
+            Output.WriteStartElement(Input.Prefix, Input.LocalName, Input.NamespaceURI);
+            CopyAttributes();
+            if (!emptyElement)
+            {
+                ProcessElementContent();
+            }
+            
+            Output.WriteEndElement();
+            //ElementInfo ei2 = (ElementInfo) _elementStack.Pop();
+            //if (ei.Name != ei2.Name) throw new Exception("Recursion fucked");
+        }
+
+        /// <summary>
+        /// Przetwarza element z namespace podlegaj¹cemu przetwarzaniu
+        /// We: stoimy na elemencie (NodeType == Element)
+        /// Wy: stoimy na tagu zamykaj¹cym element (NodeType == EndElement) albo na ostatnim atrybucie
+        /// elementu jeœli jest on pusty. W ka¿dym razie, nastêpne wywo³anie 'Read()' da nam kolejny node
+        /// w dokumencie nastêpuj¹cy tu¿ po przetworzonym elemencie.
+        public void PreprocessElement()
+        {
+            if (Input.NodeType != XmlNodeType.Element) throw new Exception("Element expected");
+            if (!_fact.HandlesNamespace(Input.NamespaceURI)) throw new Exception("Invalid namespace");
+            log.Debug("Preprocessing {0}:{1}", Input.LocalName, Input.NamespaceURI);
+            IElementHandler handler = _fact.GetHandlerFor(Input.LocalName, Input.NamespaceURI);
+            if (handler == null) throw new Exception(string.Format("No handler for {0}:{1}", Input.Name, Input.NamespaceURI));
+            bool emptyElement = Input.IsEmptyElement;
+            int depth = Input.Depth;
+
+            ElementInfo ei = new ElementInfo(Input.Prefix, Input.LocalName, Input.NamespaceURI, Input.IsEmptyElement, Input.Depth);
+            ei.Handler = handler;
+            _elementStack.Insert(_elementStack.Count, ei);
+            ReadAttributes();
+            XmlNodeType inType = Input.NodeType;
+            string inName = Input.Name;
+            handler.ElementStart(this);
+            bool contentHandled = false;
+            //sprawdzmy czy sie dobrze zachowuje
+            if (Input.NodeType == XmlNodeType.EndElement)
+            {
+                contentHandled = true;
+                if (depth != Input.Depth ||
+                    ei.Name != Input.LocalName ||
+                    ei.NamespaceUri != Input.NamespaceURI)
+                {
+                    throw new Exception("Element content was not handled properly");
+                }
+            }
+            else
+            {
+                if (Input.NodeType != inType ||
+                    Input.Name != inName)
+                    throw new Exception("Element content was not handled properly");
+            }
+            
+            if (!contentHandled && !emptyElement)
+            {
+                ProcessElementContent();
+            }
+
+            ElementInfo ei2 = (ElementInfo) _elementStack[_elementStack.Count - 1];
+            if (ei.Name != ei2.Name) throw new Exception("Recursion fucked");
+            if (!contentHandled) handler.ElementEnd(this);
+            ei.Handler = null;
+            _elementStack.RemoveAt(_elementStack.Count - 1);
+        }
+
+        private bool PreprocessNamespaceMatch(string ns)
+        {
+            return _matchNs.Equals(ns);
+        }
+
+        private IElementHandler GetHandlerForElement(ElementInfo ei)
+        {
+            return new DummyHandler();
+        }
+
+        #region IFormContext Members
+
+        public ElementInfo CurrentElement
+        {
+            get { return _elementStack[_elementStack.Count - 1];  }
+        }
+
+        public XmlReader Input
+        {
+            get { return _Input; }
+        }
+
+        public XmlWriter Output
+        {
+            get { return _Output; }
+        }
+
+        #endregion
+
+        #region IFormContext Members
+
+
+        public object this[string key]
+        {
+            get
+            {
+                return _customAttributes[key];
+            }
+            set
+            {
+                _customAttributes[key] = value;
+            }
+        }
+
+       
+
+        public int StackSize
+        {
+            get { return _elementStack.Count; }
+        }
+
+        public ElementInfo PeekElementStack(int n)
+        {
+            return _elementStack[n];
+        }
+
+        #endregion
+
+        #region IFormContext Members
+
+
+        public object Eval(string expr)
+        {
+            return _evaluator.Evaluate(expr);
+        }
+
+
+
+        public object T
+        {
+            get
+            {
+                return _t;
+            }
+            set
+            {
+                _t = value;
+                _evaluator.AddRootVariable("T", _t);
+            }
+        }
+
+        public IDictionary ViewState
+        {
+            get
+            {
+                return _viewState;
+            }
+            set
+            {
+                _viewState = value;
+            }
+        }
+
+        #endregion
+    }
+
+}

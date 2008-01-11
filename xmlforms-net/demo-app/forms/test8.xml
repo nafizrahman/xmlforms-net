@@ -1,0 +1,50 @@
+<r2:webpage
+    xmlns="http://www.w3.org/1999/xhtml" 
+    xmlns:r="http://www.rg.com"
+    xmlns:r2="http://www.rg.com/preprocess">
+    
+        <table>
+            <tr>
+                <td>
+                    <r:panel id="p1" href="default.aspx?form=test1.xml" >
+                    </r:panel>
+					<br/>
+					<button type="button" onclick="CP_ReloadPanel('p1')">Reload</button>
+                </td>
+                
+				<td>
+                    <r:panel id="p2" href="default.aspx?form=test1.xml" >
+                    </r:panel>
+					<br/>
+					<button type="button" onclick="CP_ReloadPanel('p2')">Reload</button>
+                </td>
+				
+            </tr>
+			<tr>
+                <td>
+                    <r:panel id="p3" href="default.aspx?form=test1.xml&amp;id=3" >
+                    </r:panel>
+					<br/>
+					<button type="button" onclick="CP_ReloadPanel('p3')">Reload</button>
+                </td>
+                
+				<td>
+                    <r:panel id="p4" href="default.aspx?form=test1.xml&amp;id=4" >
+                    </r:panel>
+					<br/>
+					<button type="button" onclick="CP_ReloadPanel('p4')">Reload</button>
+                </td>
+				
+            </tr>
+            <!-- tr>
+                <td>
+                    <r2:element name="panel"><r2:attribute name="href" value="'default.aspx?form=test3.xml'" /><r2:attribute name="id" value="'p3'" /></r2:element>
+                </td>
+                 <td>
+                    <r:panel id="p4" href="default.aspx?form=test6.xml&amp;X=173" >
+                    </r:panel>
+                </td>
+            </tr -->
+        </table>
+</r2:webpage>
+    

@@ -1,0 +1,22 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<r2:webform 
+	xmlns="http://www.w3.org/1999/xhtml" 
+    xmlns:r="http://www.rg.com"
+    xmlns:r2="http://www.rg.com/preprocess"
+	id="wf-details">
+	<r2:soodatransaction>
+		<r2:objectview objref="sooda*Contact*1">
+			<p><h2>Contact <r2:value expr="Id" /></h2></p>
+			<table>
+			<tr>
+				<td><r2:field name="Name" /></td>
+				<td><r2:field name="Login" /></td>
+			</tr>
+			<tr>
+				<td><r2:field name="VIP" /></td>
+				<td><r2:field name="Email" /></td>
+			</tr>
+			</table>
+		</r2:objectview>
+	</r2:soodatransaction>
+</r2:webform>

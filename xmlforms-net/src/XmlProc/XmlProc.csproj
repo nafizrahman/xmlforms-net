@@ -1,0 +1,110 @@
+﻿<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProductVersion>8.0.50727</ProductVersion>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>{42E49470-9D7B-40C0-BD8C-F8E84146A6BB}</ProjectGuid>
+    <OutputType>Exe</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>XmlProc</RootNamespace>
+    <AssemblyName>XmlProc</AssemblyName>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="AjaxPro.JSON.2, Version=7.7.31.1, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\Ext\AjaxPro.JSON.2.dll</HintPath>
+    </Reference>
+    <Reference Include="Atmo.Common, Version=1.0.0.0, Culture=neutral, PublicKeyToken=6277e9dc66d16e0d, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\P4\Atmo\distribution\Atmo\Atmo.Common.dll</HintPath>
+    </Reference>
+    <Reference Include="Atmo.Config, Version=1.0.0.0, Culture=neutral, PublicKeyToken=6277e9dc66d16e0d, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\P4\Atmo\distribution\Atmo\Atmo.Config.dll</HintPath>
+    </Reference>
+    <Reference Include="Atmo.Core, Version=1.0.0.0, Culture=neutral, PublicKeyToken=6277e9dc66d16e0d, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\P4\Atmo\distribution\Atmo\Atmo.Core.dll</HintPath>
+    </Reference>
+    <Reference Include="JSEvaluator, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\JSEvaluator.dll</HintPath>
+    </Reference>
+    <Reference Include="Newtonsoft.Json, Version=1.3.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\jsonnet\Bin\Newtonsoft.Json.dll</HintPath>
+    </Reference>
+    <Reference Include="NLog, Version=1.0.0.501, Culture=neutral, PublicKeyToken=5120e14c03d0593c">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\P4\Atmo\ExternalLib\net-2.0\NLog.dll</HintPath>
+    </Reference>
+    <Reference Include="Sooda, Version=1.0.0.428, Culture=neutral, PublicKeyToken=102bbd392415062a, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\Ext\Sooda.dll</HintPath>
+    </Reference>
+    <Reference Include="Spring.Core, Version=1.1.0.2, Culture=neutral, PublicKeyToken=65e474d141e25e07, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\Program Files\Spring.NET 1.1\bin\net\2.0\release\Spring.Core.dll</HintPath>
+    </Reference>
+    <Reference Include="System" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Web" />
+    <Reference Include="System.Xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="DefaultDataBinder.cs" />
+    <Compile Include="DummyHandler.cs" />
+    <Compile Include="ElementHandlerAttribute.cs" />
+    <Compile Include="Elements\AnyAttributeHandler.cs" />
+    <Compile Include="Elements\TreeHandler.cs" />
+    <Compile Include="Elements\CustomHandler.cs" />
+    <Compile Include="Elements\ElementHandler.cs" />
+    <Compile Include="Elements\FieldHandler.cs" />
+    <Compile Include="Elements\WebFormHandler.cs" />
+    <Compile Include="Elements\SoodaTransactionHandler.cs" />
+    <Compile Include="Elements\ObjectViewHandler.cs" />
+    <Compile Include="Elements\ValueHandler.cs" />
+    <Compile Include="Elements\IfHandler.cs" />
+    <Compile Include="FormExpressionEvaluator.cs" />
+    <Compile Include="FormHandlerManager.cs" />
+    <Compile Include="FormProcessorFactory.cs" />
+    <Compile Include="IFormHandler.cs" />
+    <Compile Include="JScriptExpressionEvaluator.cs" />
+    <Compile Include="JSONRPCHandler.cs" />
+    <Compile Include="ObjectLocator.cs" />
+    <Compile Include="PersistenceManager.cs" />
+    <Compile Include="Program.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="TestJSON.cs" />
+    <Compile Include="TestObject.cs" />
+    <Compile Include="Web\JSONRPC.cs" />
+    <Compile Include="XmlFormHandler.cs" />
+    <None Include="XmlFormProcessor.cs_" />
+  </ItemGroup>
+  <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
+  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
+       Other similar extension points exist, see Microsoft.Common.targets.
+  <Target Name="BeforeBuild">
+  </Target>
+  <Target Name="AfterBuild">
+  </Target>
+  -->
+</Project>

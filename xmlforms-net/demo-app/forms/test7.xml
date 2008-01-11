@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<r2:webpage 
+	xmlns="http://www.w3.org/1999/xhtml" 
+    xmlns:r="http://www.rg.com"
+    xmlns:r2="http://www.rg.com/preprocess">
+	<script language="javascript"><![CDATA[
+		function testme()
+		{
+			var rpc = new TRPC("", "discard");
+			var objref = "Contact*1";
+			rpc.addSetField(objref, "Name", new Date());
+			rpc.addSetField(objref, "Supervisor.Name", "zenek");
+			rpc.addSetField(objref, "BirthDate", new Date());
+			rpc.addGetField(objref, "Id");
+			rpc.execute();
+			//var o = new Object();
+			//o.Ala = "Ala";
+			//o.Kot = "kot";
+			//var s = $.toJSON(o);
+			//jQuery.post("trpc.aspx", s, function(data) {
+			//	alert("data:" + data);
+			//});
+		}
+	]]></script>
+	<input type="button" onclick="testme('e')" value="aaa" />
+
+</r2:webpage>
