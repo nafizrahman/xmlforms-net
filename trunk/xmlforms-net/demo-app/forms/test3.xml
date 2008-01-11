@@ -1,0 +1,13 @@
+<r2:webform 
+    xmlns="http://www.w3.org/1999/xhtml" 
+    xmlns:r="http://www.rg.com"
+    xmlns:r2="http://www.rg.com/preprocess"
+    tid="_PAR['tid']">
+        <r2:objectview key="_PAR['X']" mode="any" type="XmlProc.TestObject, XmlProc">
+        <h3>Parametr 'X':<r2:value expr="_PAR['X']" /></h3>
+        <h3>Name: <r2:value expr="T.Name" /></h3>
+        <br />
+            <r2:field name="CreatedDate" />
+        </r2:objectview>
+</r2:webform>
+    
