@@ -1,0 +1,1 @@
+XML-based GUI framework for building user interface for business web applications. Uses XML for form description, includes basic GUI widgets and structures. Based on .Net, ASP.Net and ajax.
